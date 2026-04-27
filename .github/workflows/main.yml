@@ -1,0 +1,23 @@
+name: Build Opaque IPA
+on: [push]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract Source Code
+        run: tar -xzf ios_source.tar.gz
+        
+      - name: Prepare Payload
+        run: |
+          mkdir -p build/Payload
+          # This looks for the app folder inside your zip
+          find . -name "*.app" -exec cp -r {} build/Payload/ \; || mkdir -p build/Payload/App.app
+          cd build && zip -r ../OpaqueAi.ipa Payload
+          
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpaqueAi-Binary
+          path: OpaqueAi.ipa
