@@ -1,4 +1,4 @@
-name: Build Opaque IPA
+name: Build Real IPA
 on: [push]
 jobs:
   build:
@@ -6,18 +6,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Extract Source Code
+      - name: Extract Source
         run: tar -xzf ios_source.tar.gz
         
-      - name: Prepare Payload
+      - name: Build and Sign (Ad-Hoc)
         run: |
-          mkdir -p build/Payload
-          # This looks for the app folder inside your zip
-          find . -name "*.app" -exec cp -r {} build/Payload/ \; || mkdir -p build/Payload/App.app
-          cd build && zip -r ../OpaqueAi.ipa Payload
+          # 1. Find the project file
+          PROJECT=$(find . -name "*.xcodeproj" | head -n 1)
+          SCHEME=$(xcodebuild -list -project "$PROJECT" | awk '/Schemes:/{f=1;next}f' | xargs | cut -d' ' -f1)
           
-      - name: Upload IPA
+          # 2. Compile the code into a real app binary
+          xcodebuild archive -project "$PROJECT" -scheme "$SCHEME" \
+          -archivePath build/OpaqueAi.xcarchive \
+          -sdk iphoneos \
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          
+          # 3. Package it into an IPA
+          mkdir -p build/Payload
+          cp -r build/OpaqueAi.xcarchive/Products/Applications/*.app build/Payload/
+          cd build && zip -r ../OpaqueAi_Real.ipa Payload
+          
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: OpaqueAi-Binary
-          path: OpaqueAi.ipa
+          name: Real-IPA-File
+          path: OpaqueAi_Real.ipa
